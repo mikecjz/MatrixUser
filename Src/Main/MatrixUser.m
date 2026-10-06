@@ -100,6 +100,13 @@ handles.V.ROIs=[];
 % List workspace content
 MU_update_list(handles);
 
+% The drop-down list of a popupmenu uicontrol is drawn inside the figure
+% canvas, so it gets clipped to the (short) main window. Make the control
+% inactive so a mouse press reaches Matrix_list_ButtonDownFcn, which shows
+% the workspace variables in a separate list window (see MU_list_chooser)
+% that is free to extend beyond the height of the main window.
+set(handles.Matrix_list,'Enable','inactive');
+
 % Choose default command line output for MatrixUser
 handles.output = hObject;
 
@@ -320,6 +327,28 @@ function Matrix_list_ButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% Only react to a plain left click
+if ~strcmp(get(handles.MatrixUser,'SelectionType'),'normal')
+    return;
+end
+
+% Refresh the workspace list, then show it in a list window that is not
+% clipped to the main figure
+MU_update_list(handles);
+MU_list_chooser(hObject,@(index)Matrix_list_select(hObject,eventdata,index));
+
+
+% --- Executes when a workspace variable is picked from the Matrix_list window
+function Matrix_list_select(hObject, eventdata, index)
+
+handles=guidata(hObject);
+contents=get(handles.Matrix_list,'String');
+if ischar(contents) || index>numel(contents)
+    return;
+end
+set(handles.Matrix_list,'Value',index);
+Matrix_list_Callback(handles.Matrix_list, eventdata, handles);
+
 
 % --- Executes on mouse press over figure background, over a disabled or
 % --- inactive control, or over an axes background.
@@ -327,6 +356,19 @@ function MatrixUser_WindowButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to MatrixUser (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% Clicking elsewhere in the main window dismisses an open matrix list window
+% (a click on the list control itself is handled by Matrix_list_ButtonDownFcn)
+oldUnits=get(hObject,'Units');
+set(hObject,'Units','pixels');
+pt=get(hObject,'CurrentPoint');
+set(hObject,'Units',oldUnits);
+ctrlPos=getpixelposition(handles.Matrix_list,true);
+overList= pt(1)>=ctrlPos(1) && pt(1)<=ctrlPos(1)+ctrlPos(3) && ...
+          pt(2)>=ctrlPos(2) && pt(2)<=ctrlPos(2)+ctrlPos(4);
+if ~overList
+    MU_list_chooser('close',handles.Matrix_list);
+end
 
 
 % --- Executes on mouse motion over figure - except title and menu.
